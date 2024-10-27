@@ -1,0 +1,23 @@
+version: 0.2
+
+phases:
+  install:
+    commands:
+      - echo "Installing Node.js 18..."
+      - curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+      - sudo apt-get install -y nodejs
+      - echo "Node.js version:"
+      - node -v
+      - echo "npm version:"
+      - npm -v
+      - echo "Installing dependencies..."
+      - npm install
+  build:
+    commands:
+      - echo "Building the Node.js application..."
+      - npm run build 
+
+artifacts:
+  files:
+    - '**/*'
+  base-directory: build

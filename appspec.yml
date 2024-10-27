@@ -4,12 +4,12 @@ files:
   - source: /
     destination: /var/www/html
 
-# hooks:
-#   AfterInstall:
-#     - location: scripts/install_nginx.sh
-#       timeout: 100
-#       runas: root
-#   ApplicationStart:
-#     - location: scripts/start_nginx.sh
-#       timeout: 100
-#       runas: root
+hooks:
+  AfterInstall:
+    - location: scripts/install_nginx.sh
+      timeout: 100
+      runas: root
+  ApplicationStart:
+    - location: scripts/start_nginx.sh
+      timeout: 100
+      runas: root

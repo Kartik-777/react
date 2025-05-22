@@ -1,0 +1,37 @@
+# .github/workflows/manual-rollback.yml
+name: Manual Rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Git tag of the version to rollback to (e.g., v1.0.0)
+        required: true
+        type: string
+
+jobs:
+  rollback:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Rollback to tag
+        run: echo "Rolling back to tag: ${{ github.event.inputs.version }}"
+
+      - name: Deploy from GitHub Release
+        uses: appleboy/ssh-action@v0.1.6
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_KEY }}
+          script: |
+            curl -L \
+              -H "Authorization: token ${{ secrets.GH_TOKEN }}" \
+              -o build.zip \
+              https://github.com/${{ github.repository }}/releases/download/${{ github.event.inputs.version }}/build-${{ github.event.inputs.version }}.zip
+
+            unzip -o build.zip
+            sudo rm -rf /var/www/html/*
+            sudo cp -r build/* /var/www/html/
+            echo "${{ github.event.inputs.version }}" | sudo tee /var/www/html/version.txt
+            sudo systemctl restart nginx
+

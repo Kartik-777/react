@@ -1,0 +1,61 @@
+name: Build and Deploy (Tag or Branch)
+
+on:
+  push:
+    tags:
+      - 'v*'        # Deploy on version tags like v1.0.0
+    branches:
+      - master        # Optional: auto-deploy from main branch
+      #- develop     # Optional: add other branches as needed
+
+env:
+  VERSION: ${{ github.ref_type == 'tag' && github.ref_name || github.sha }}
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Install dependencies and build
+        run: |
+          npm install --force
+          npm run build
+
+      - name: Zip the build folder
+        run: zip -r build-${{ env.VERSION }}.zip build/
+
+      - name: Create GitHub Release and upload build
+        if: github.ref_type == 'tag'  # Only release on tag pushes
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ env.VERSION }}
+          name: Release ${{ env.VERSION }}
+          files: build-${{ env.VERSION }}.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_KEY }}
+          script: |
+            curl -L \
+              -H "Authorization: token ${{ secrets.GH_TOKEN }}" \
+              -o build.zip \
+              https://github.com/${{ github.repository }}/releases/download/${{ env.VERSION }}/build-${{ env.VERSION }}.zip || exit 1
+
+            unzip -o build.zip
+            sudo rm -rf /var/www/html/react/*
+            sudo cp -r build/* /var/www/html/react
+            echo "${{ env.VERSION }}" | sudo tee /var/www/html/react/version.txt
+            sudo systemctl restart nginx
